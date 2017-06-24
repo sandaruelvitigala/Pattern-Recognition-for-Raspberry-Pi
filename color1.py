@@ -3,6 +3,20 @@ import argparse
 import cv2
 import time
 
+def getDirrection(p1x,p1y,p2x,p2y,frame):
+    dirrection=""
+    if(p1y>p2y):
+        dirrection="up"
+    if (p1y<=p2y):
+        dirrection="down"
+    if(p1x>p2x):
+        dirrection=dirrection+" left"
+    if(p1x<=p2x):
+        dirrection=dirrection+" right"
+    print dirrection
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    frame=cv2.putText(frame,dirrection,(p1x+10,p1y+10), font, 1,(200,200,0),2,cv2.LINE_AA)
+    return frame
 def colorSpace(frame):
     gray_image1 = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     im_color1 = cv2.applyColorMap(gray_image1, cv2.COLORMAP_JET)
@@ -61,23 +75,22 @@ else:
     rval = False
 
 while rval:
-    framek = cv2.resize(frames, (640, 480))
-    frame = framek[90:390,160:460]
-    extracted1=colorSpaceRedExtraction(frame)
+    framek = cv2.resize(frames, (640, 480))#gets the frames and resize
+    frame = framek[90:390,160:460]#crops the image
+    extracted1=colorSpaceRedExtraction(frame)#does the heat extraction and grayscale
     #time.sleep(0.5)
     rval, frames = vc.read()
     framek = cv2.resize(frames, (640, 480))
     frame = framek[90:390,160:460]
-    extracted2=colorSpaceRedExtraction(frame)  
-    imageDifference=extracted1-extracted2
-    imageDifference = cv2.cvtColor(imageDifference, cv2.COLOR_BGR2GRAY)
-    imageDifference = cv2.erode(imageDifference, None, iterations=2)
-    imageDifference = cv2.dilate(imageDifference, None, iterations=2)
+    extracted2=colorSpaceRedExtraction(frame)
+    jpgred=colorSpace(frame)
+    imageDifference=extracted1-extracted2#reduce two frames common pixels
+    imageDifference = cv2.cvtColor(imageDifference, cv2.COLOR_BGR2GRAY)#convert the difference to grayscale    imageDifference = cv2.erode(imageDifference, None, iterations=2)#remove unnessary noise
+    imageDifference = cv2.dilate(imageDifference, None, iterations=2)#fill the small spots
     kernel = np.ones((10,10),np.float32)/25
     dst = cv2.filter2D(imageDifference,-1,kernel)
-    blurred = cv2.bilateralFilter(dst,15,80,80)
-    ret,blurred = cv2.threshold(blurred,200,255,cv2.THRESH_BINARY)
-    
+    blurred = cv2.bilateralFilter(dst,15,80,80)#blur the image
+    ret,blurred = cv2.threshold(blurred,200,255,cv2.THRESH_BINARY)#get the threshold binarry image
     #edges = cv2.Canny(blurred, 50, 150,apertureSize = 3)
 
     #gamma=0.05
@@ -103,15 +116,14 @@ while rval:
     #lines = cv2.HoughLinesP(opening,1,np.pi/180,1,minLineLength,maxLineGap)
     #lines = cv2.HoughLinesP(blurred,1,np.pi/180,1,minLineLength,maxLineGap)
 
-    frame1=frame
-    k,contours,hierarchy = cv2.findContours(blurred, 1, 2)
+    k,contours,hierarchy = cv2.findContours(blurred, 1, 2)#gets cantour
     try:
         if contours is not None:
             cnt = contours[0]
-            area = cv2.contourArea(cnt)
+            area = cv2.contourArea(cnt)#get area of the cantour
             #print area
-            if((area>1000)):
-                M = cv2.moments(cnt)
+            if((area>2000)): #remove outliesrs
+                M = cv2.moments(cnt)#get moment
                 centroid_x = int(M['m10']/M['m00'])
                 centroid_y = int(M['m01']/M['m00'])
                 print centroid_x
@@ -119,10 +131,11 @@ while rval:
                 pt1 = (centroid_x,centroid_y)
                 frame1=cv2.circle(frame1,pt1,5,(0,255,0),5)
                 #cv2.circle(frame,(int(centroid_x),int(centroid_y)),5,(200,0,0),2)
-                x,y,w,h = cv2.boundingRect(cnt)
+                x,y,w,h = cv2.boundingRect(cnt)#get bounding rectangle
                 frame = cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
                 print "momment(" + str(centroid_x)+"," + str(centroid_y)+") rectangle middle ("+str(x+w/2)+","+str(y+h/2)+")"
                 frame1=cv2.circle(frame1,(int(x+w/2),int(y+h/2)),5,(0,0,255),5)
+                frame=getDirrection(centroid_x,centroid_y,int(x+w/2),int(y+h/2),frame)#calculate the position
                 rect = cv2.minAreaRect(cnt)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
@@ -133,16 +146,7 @@ while rval:
                 #print [cnt]
                 rc = cv2.minAreaRect(contours[0])
                 box = cv2.boxPoints(approx)
-                cnts = cnts[0] if imutils.is_cv2() else cnts[1]
-                c = max(cnts, key=cv2.contourArea)
-                extLeft = tuple(c[c[:, :, 0].argmin()][0])
-                extRight = tuple(c[c[:, :, 0].argmax()][0])
-                extTop = tuple(c[c[:, :, 1].argmin()][0])
-                extBot = tuple(c[c[:, :, 1].argmax()][0])
-                cv2.circle(frame, extLeft, 8, (0, 0, 255), -1)
-                cv2.circle(frame, extRight, 8, (0, 255, 0), -1)
-                cv2.circle(frame, extTop, 8, (255, 0, 0), -1)
-                cv2.circle(frame, extBot, 8, (255, 255, 0), -1)
+                
                 for p in box:
                     pt = (p[0],p[1])
                     print pt
