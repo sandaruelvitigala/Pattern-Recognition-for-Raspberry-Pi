@@ -103,7 +103,7 @@ while rval:
     #lines = cv2.HoughLinesP(opening,1,np.pi/180,1,minLineLength,maxLineGap)
     #lines = cv2.HoughLinesP(blurred,1,np.pi/180,1,minLineLength,maxLineGap)
 
-
+    frame1=frame
     k,contours,hierarchy = cv2.findContours(blurred, 1, 2)
     try:
         if contours is not None:
@@ -111,18 +111,38 @@ while rval:
             area = cv2.contourArea(cnt)
             #print area
             if((area>1000)):
+                M = cv2.moments(cnt)
+                centroid_x = int(M['m10']/M['m00'])
+                centroid_y = int(M['m01']/M['m00'])
+                print centroid_x
+                print centroid_y
+                pt1 = (centroid_x,centroid_y)
+                frame1=cv2.circle(frame1,pt1,5,(0,255,0),5)
+                #cv2.circle(frame,(int(centroid_x),int(centroid_y)),5,(200,0,0),2)
                 x,y,w,h = cv2.boundingRect(cnt)
                 frame = cv2.rectangle(frame,(x,y),(x+w,y+h),(0,255,0),2)
+                print "momment(" + str(centroid_x)+"," + str(centroid_y)+") rectangle middle ("+str(x+w/2)+","+str(y+h/2)+")"
+                frame1=cv2.circle(frame1,(int(x+w/2),int(y+h/2)),5,(0,0,255),5)
                 rect = cv2.minAreaRect(cnt)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                frame = cv2.drawContours(frame,[box],0,(0,0,255),2)
+                #frame = cv2.drawContours(frame,[box],0,(0,0,255),2)
                 approx = cv2.approxPolyDP(cnt,0.01*cv2.arcLength(cnt,True),True)
                 #print len(approx)
-                cv2.drawContours(frame,[cnt],0,255,-1)
+                #cv2.drawContours(frame,[cnt],0,255,-1)
                 #print [cnt]
                 rc = cv2.minAreaRect(contours[0])
                 box = cv2.boxPoints(approx)
+                cnts = cnts[0] if imutils.is_cv2() else cnts[1]
+                c = max(cnts, key=cv2.contourArea)
+                extLeft = tuple(c[c[:, :, 0].argmin()][0])
+                extRight = tuple(c[c[:, :, 0].argmax()][0])
+                extTop = tuple(c[c[:, :, 1].argmin()][0])
+                extBot = tuple(c[c[:, :, 1].argmax()][0])
+                cv2.circle(frame, extLeft, 8, (0, 0, 255), -1)
+                cv2.circle(frame, extRight, 8, (0, 255, 0), -1)
+                cv2.circle(frame, extTop, 8, (255, 0, 0), -1)
+                cv2.circle(frame, extBot, 8, (255, 255, 0), -1)
                 for p in box:
                     pt = (p[0],p[1])
                     print pt
@@ -167,6 +187,7 @@ while rval:
     #cv2.imshow("red",approx)
     cv2.imshow("object",blurred)
     cv2.imshow("preview",frame)
+    cv2.imshow("previewq",frame1)
     key = cv2.waitKey(20)
     if key == 27: # exit on ESC
         break
